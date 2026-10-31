@@ -220,7 +220,14 @@ export function skillProbability(raw) {
   // The source contains five skills, but in the absence of seeds, only the
   // latest constrained slot must be sampled (a marginal over later slots).
   const maxLevel = Math.max(10,...state.rules.map(x=>x.level),...state.exclusions.map(x=>x.level));
-  const depth = state.seeds && state.rules.length ? 5 : LEVELS.indexOf(maxLevel)+1;
+  // Enumerating all five slots is necessary for seed-upgradable targets: an
+  // unopened copy of a higher rank can block a promotion at an early level.
+  // For non-upgradable targets, seeds cannot improve the requested outcome,
+  // so integrating over later draws is mathematically redundant (and costly).
+  const seedRelevant = state.seeds && state.rules.some(rule =>
+    (upgradeIndex.get(rule.skill)?.i ?? 0) > 0
+  );
+  const depth = seedRelevant ? 5 : LEVELS.indexOf(maxLevel)+1;
   const chosen = new Array(depth);
   const weights = SKILLS.map(s=>s.weight);
   const goldIndices = SKILLS.map((s,i)=>s.rarity==='gold'?i:-1).filter(i=>i>=0);
@@ -229,7 +236,7 @@ export function skillProbability(raw) {
 
   function walk(pos, totalRemaining, remainingGoldWeight, pathWeight) {
     if (pos===depth) {
-      if (!excluded(state.exclusions,chosen) && targetSatisfied(state.rules,chosen,state.seeds)) probability += pathWeight;
+      if (!excluded(state.exclusions,chosen) && targetSatisfied(state.rules,chosen,seedRelevant)) probability += pathWeight;
       return;
     }
     if (pos < state.gold) {
