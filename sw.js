@@ -1,8 +1,8 @@
-const CACHE_NAME='sleep-odds-shell-v1-1-22';
+const CACHE_NAME='sleep-odds-shell-v1-1-23';
 const APP_FILES=[
   './','./index.html','./styles.css','./app.js','./calculator.mjs',
   './calc-worker.js','./nature-selection.mjs','./manifest.webmanifest','./assets/favicon-32.png','./assets/apple-touch-icon.png',
-  './assets/icon-192.png','./assets/icon-maskable-192.png','./assets/icon-512.png','./assets/icon-maskable-512.png'
+  './assets/icon-192.png','./assets/icon-maskable-192.png','./assets/icon-512.png','./assets/icon-maskable-512.png','./assets/icon-header-96.png','./assets/favicon-48.png'
 ];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_FILES)).then(()=>self.skipWaiting()));
