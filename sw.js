@@ -1,4 +1,4 @@
-const CACHE_NAME='sleep-odds-shell-v1-1-24';
+const CACHE_NAME='sleep-odds-shell-v1-1-25';
 const APP_FILES=[
   './','./index.html','./styles.css','./app.js','./calculator.mjs',
   './calc-worker.js','./nature-selection.mjs','./manifest.webmanifest','./assets/favicon-32.png','./assets/apple-touch-icon.png',
