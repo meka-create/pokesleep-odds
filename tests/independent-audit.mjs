@@ -1,0 +1,20 @@
+import {SKILLS,LEVELS,auditSeedConfiguration, calculateAll,skillProbability, NATURES, INGREDIENTS, TWO_INGREDIENT_WEIGHTS} from '../calculator.mjs';
+const families=[['skill_level_s','skill_level_m'],['inventory_s','inventory_m','inventory_l'],['speed_s','speed_m'],['ingredient_s','ingredient_m'],['skill_chance_s','skill_chance_m']];
+const promotes=new Map();for(const f of families)for(let i=0;i<f.length-1;i++)promotes.set(f[i],f[i+1]);
+function satisfies(goals,items){const opts=goals.map(g=>items.flatMap((s,i)=>s===g.skill&&LEVELS[i]<=g.level?[i]:[]));if(opts.some(x=>!x.length))return false;
+const search=(i,used)=>i===opts.length||opts[i].some(j=>!used.has(j)&&search(i+1,new Set([...used,j])));return search(0,new Set());}
+function bruteReach(goals,items){let states=[items];const levels=[...new Set(goals.map(x=>x.level))].sort((a,b)=>a-b);for(const lv of levels){const unlocked=LEVELS.filter(x=>x<=lv).length;const seen=new Set();const queue=states.map(x=>x.slice());const survivors=[];for(let j=0;j<queue.length;j++){let v=queue[j],key=v.join('|');if(seen.has(key))continue;seen.add(key);if(satisfies(goals.filter(g=>g.level<=lv),v))survivors.push(v);for(let k=0;k<unlocked;k++){const dst=promotes.get(v[k]);if(dst&&!v.includes(dst)){const w=v.slice();w[k]=dst;queue.push(w);}}}if(!survivors.length)return false;states=survivors;}return true;}
+let seed=42;function rand(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;}
+for(let trial=0;trial<2500;trial++){const pool=SKILLS.map(s=>s.id);const ids=[];for(let i=0;i<5;i++)ids.push(pool.splice(Math.floor(rand()*pool.length),1)[0]);const goals=[];let count=1+Math.floor(rand()*3);for(let i=0;i<count;i++){goals.push({skill:SKILLS[Math.floor(rand()*SKILLS.length)].id,level:LEVELS[Math.floor(rand()*LEVELS.length)]});}const a=bruteReach(goals,ids), b=auditSeedConfiguration(goals,ids);if(a!==b){console.log('FAIL',ids,goals,a,b);process.exit(1);}}console.log('PASS independent seed feasibility 2500 cases');
+// Exact analytical/no-seed enumeration with different implementation by direct list of candidate distributions and product factors.
+function drawP(goals,exclusions,gold){const weights=new Map(SKILLS.map(x=>[x.id,x.weight]));const goldSet=new Set(SKILLS.filter(x=>x.rarity==='gold').map(x=>x.id));const max=Math.max(...goals.concat(exclusions).map(x=>x.level),10), depth=LEVELS.indexOf(max)+1;const rec=(pos,order,weight)=>{if(pos===depth)return (satisfies(goals,order)&&!exclusions.some(g=>order.some((x,i)=>x===g.skill&&LEVELS[i]<=g.level)))?weight:0;const opts=[...weights].filter(([id])=>!order.includes(id)&&(pos>=gold||goldSet.has(id)));const total=opts.reduce((s,[,p])=>s+p,0);return opts.reduce((s,[id,w])=>s+rec(pos+1,[...order,id],weight*w/total),0);};return rec(0,[],1);}
+const checks=[
+{rules:[{skill:'berry_s',level:25}],exclusions:[]},
+{rules:[{skill:'speed_m',level:50},{skill:'berry_s',level:70}],exclusions:[]},
+{rules:[{skill:'ingredient_s',level:25}],exclusions:[{skill:'berry_s',level:50}]},
+{rules:[{skill:'inventory_l',level:80}],exclusions:[{skill:'help_bonus',level:10}]},
+{rules:[{skill:'speed_s',level:10},{skill:'skill_level_s',level:25}],exclusions:[]},
+{rules:[{skill:'speed_m',level:10}],exclusions:[{skill:'berry_s',level:80}]}
+];
+for (const item of checks) for(let g=0;g<4;g++){const expected=drawP(item.rules,item.exclusions,g);const actual=skillProbability({...item,gold:g,seeds:false});if(Math.abs(expected-actual)>3e-10){console.log('FAIL direct-weight enumeration',item,g,expected,actual);process.exit(1);}}console.log('PASS independent weighted draws',checks.length*4);
+const pi=calculateAll({rules:[{skill:'berry_s',level:25}],exclusions:[],seeds:false,natures:['adamant','brave'],ingredientPool:3,ingredients:['AAA','AAB']});for(let g=0;g<4;g++){let p=drawP([{skill:'berry_s',level:25}],[],g)*2/25*2/9;if(Math.abs(pi[g].p-p)>1e-12||Math.abs(pi[g].expected-1/p)>1e-6)throw Error('combined probability mismatch');}console.log('PASS independently factorised probabilities and expected values');
